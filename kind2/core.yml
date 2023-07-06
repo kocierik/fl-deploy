@@ -55,9 +55,18 @@ spec:
               fieldPath: status.podIP
         - name: DEPLOY_ENV
           value: "kubernetes"
-
+        volumeMounts:
+          - name: postgres-data
+            mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: postgres-data-pvc
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:latest
+          command: ["sh", "-c", "until pg_isready -h postgres -U postgres; do sleep 1; done"]
 ---
-
 apiVersion: v1
 kind: Service
 metadata:
@@ -75,3 +84,16 @@ spec:
       targetPort: 4000
       nodePort: 30210
       protocol: TCP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data-pvc
+  namespace: fl
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 3Gi
+

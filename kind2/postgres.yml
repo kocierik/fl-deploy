@@ -39,9 +39,14 @@ spec:
           value: ${POSTGRES_USER}
         - name: POSTGRES_HOST_AUTH_METHOD
           value: trust
-
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+      volumes:
+      - name: postgres-data
+        persistentVolumeClaim:
+          claimName: postgres-data-pvc
 ---
-
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -72,7 +77,7 @@ spec:
       - name: init-postgres
         image: "postgres:latest"
         imagePullPolicy: IfNotPresent
-        command:  ["/bin/bash", "-c", "while ! pg_isready -h postgres -U postgres; do sleep 1; done; psql -h postgres -U postgres -c 'CREATE DATABASE funless;'"]
+        command: ["/bin/bash", "-c", "while ! pg_isready -h postgres -U postgres; do sleep 1; done; psql -h postgres -U postgres -c 'CREATE DATABASE funless;'"]
         env:
         - name: POSTGRES_PASSWORD
           value: ${POSTGRES_PASSWORD}
@@ -80,9 +85,7 @@ spec:
           value: ${POSTGRES_USER}
         - name: POSTGRES_HOST_AUTH_METHOD
           value: trust
-
 ---
-
 apiVersion: v1
 kind: Service
 metadata:
@@ -95,7 +98,20 @@ spec:
   selector:
     app: fl-postgres
   ports:
-    - name: http
-      port: 5432
-      targetPort: 5432
-      protocol: TCP
+  - name: http
+    port: 5432
+    targetPort: 5432
+    protocol: TCP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data-pvc
+  namespace: fl
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 3Gi
+
